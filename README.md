@@ -1,4 +1,4 @@
-# Mitmproxy-Based Packet Capture Tool (for Web Scraping Engineers)
+# 基于mitmproxy的抓包工具（适用爬虫工程师）
 
 基于 **mitmproxy** 的本地 HTTP/HTTPS 抓包工具，面向爬虫开发、接口调试和逆向分析。集抓包、编辑重放、参数追踪、三维关系图与 MCP 接入于一个 Web 控制台。
 
@@ -18,8 +18,8 @@
 需要 **Python 3.12 或更高版本**。当前主要在 macOS 验证，采集通道使用 Unix socket，Windows 尚未适配验证。
 
 ```bash
-git clone https://github.com/zasdadasdwd/capture-workbench.git
-cd capture-workbench
+git clone https://github.com/zasdadasdwd/mitmproxy-capture-tool.git
+cd mitmproxy-capture-tool
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 .venv/bin/python main.py
@@ -136,7 +136,7 @@ Hook 模块集合在完整启动时固定；修改模块列表或源码后需完
 ## 项目目录
 
 ```text
-capture-workbench/
+mitmproxy-capture-tool/
 ├── main.py                   # Web 服务启动入口
 ├── mcp_server.py             # MCP 启动入口
 ├── config.py                 # 配置模型与默认配置字典
