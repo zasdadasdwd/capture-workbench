@@ -1,104 +1,199 @@
-# Capture · 流量工作台
+# 基于mitmproxy的抓包工具(适用爬虫工程师)
 
-基于 mitmproxy 的本地抓包工具。后端 Python，前端原生 HTML/CSS/JavaScript，不需要 Node 构建。
+基于 **mitmproxy** 的本地 HTTP/HTTPS 抓包工具，面向爬虫开发、接口调试和逆向分析。集抓包、编辑重放、参数追踪、三维关系图与 MCP 接入于一个 Web 控制台。
 
-第一次使用请看[使用指南](capture/support/docs/使用指南.md)；修改代码或让 Agent 接手开发请看[架构与模块地图](capture/support/docs/架构与模块_AI.md)。
-后续改进与本轮稳定性修复记录在[优化建议与检查记录](capture/support/docs/优化建议与检查记录.md)。
+> **合法使用声明**：本项目仅用于合法、获得授权的开发调试、接口测试与研究。请遵守适用法律法规及相关服务的使用规则，不得用于未经授权的数据获取、侵犯隐私或其他违法用途。
 
-## 启动
+## 项目优势
 
-要求 Python 3.12 或更高版本；本项目已经使用 `.venv` 安装依赖。
+- **从报文到参数来源**：搜索字段名或值的片段，在请求与响应中查找出现记录，结合时间线和三维关系图检查参数的来源与后续使用。
+- **Agent 可以按需分析**：MCP 提供条件查询、分段读取、参数追踪和请求对比，避免一次塞入大量报文；开发者可以实时查看 Agent 的查询日志。
+- **抓包与分析隔离**：代理由独立 mitmdump 进程转发，链路分析在独立进程运行；停止记录后仍能正常转发网络请求。
+- **扩展方式简单**：继承 `BaseHook` 即可注册处理器，直接修改 mitmproxy `HTTPFlow` 的请求和响应，界面按名称管理启用状态与执行顺序。
+- **数据保存在本地**：每次抓包有独立的 SQLite 会话与正文目录，支持历史管理和导出；仓库不包含本机抓包数据、CA 私钥或虚拟环境。
+- **部署步骤少**：Python 后端与原生 HTML/CSS/JavaScript 前端，无需 Node 构建；三维图依赖随项目提供，启动后自动打开浏览器。
+
+## 快速开始
+
+需要 **Python 3.12 或更高版本**。当前主要在 macOS 验证，采集通道使用 Unix socket，Windows 尚未适配验证。
 
 ```bash
+git clone https://github.com/zasdadasdwd/capture-workbench.git
+cd capture-workbench
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 .venv/bin/python main.py
 ```
 
-Windows 使用 `.venv\Scripts\python.exe`。当前采集通道使用 Unix socket，首版主要验证 macOS；Windows 适配尚未验证。
+启动成功后自动打开控制台。浏览器不可用时仅提示访问地址，服务继续运行。
 
-打开 `http://127.0.0.1:8765`，管理服务启动后代理即开始转发，点击“开始抓包”才创建会话并保存请求。客户端设置 HTTP/HTTPS 代理 `127.0.0.1:8080`。HTTPS 解密先阅读 [证书安装](capture/support/docs/证书安装.md)。默认列表解密且列表为空，TLS 全部透传。
+| 用途 | 默认地址 |
+| --- | --- |
+| Web 控制台 | `http://127.0.0.1:8765` |
+| 客户端 HTTP/HTTPS 代理 | `127.0.0.1:8080` |
+| HTTP MCP（需启用） | `http://127.0.0.1:8766/mcp` |
 
-启动配置为 `startup.toml`，支持管理端口、自动开始抓包和第三方 Hook 模块。首次启动的常用代理配置在 `config.py` 的 `DEFAULT_SETTINGS` 字典中。也可以执行 `python main.py --config /path/to/startup.toml`。
-MCP 已支持条件查询、参数来源与链路候选分析、请求对比、编辑重放和开发者查询日志，参见 [MCP 接入](capture/support/docs/MCP接入.md)。
+1. 在客户端设置 HTTP/HTTPS 代理。
+2. 在控制台点击“开始抓包”，开始保存请求；点击“停止抓包”仅停止记录。
+3. 如需 HTTPS 解密，在“设置 → CA 证书管理”下载并安装证书，按 [证书安装说明](capture/support/docs/证书安装.md) 完成信任设置。
+4. 将目标域名加入解密列表，或切换为全部解密。默认采用列表解密且列表为空，TLS 流量全部透传。
 
-## 当前功能
+手机抓包时，在代理设置中将监听地址改为 `0.0.0.0`，客户端填写电脑的局域网 IP 与实际代理端口。顶部会显示当前代理地址。
 
-- [三维请求参数关系网](capture/support/docs/数据链路.md)：选字段追踪关联请求、节点/参数高亮浮窗、分支展开、实时增量、人工备注与视图保存；分析独立进程运行。
+## 功能一览
 
-- 独立 mitmdump 进程常驻转发；“开始抓包”启用记录，“停止抓包”仅停止记录，不断开客户端代理连接。退出管理服务时才终止代理。
-- TLS 全部解密 / 列表解密 / 全部透传；拒绝开关与域名列表，拒绝优先。
-- WebSocket 实时更新；域名 / URL 搜索、分页、单选、多选、Shift 连选与筛选结果选择。
-- 顶部“筛选”提供常用条件，“多条件筛选”可添加条件和子组；每组自行选择“全部满足 AND”或“任一满足 OR”，子组即括号，界面会预览实际逻辑与当前会话匹配数量。支持域名、URL、方法、状态码（200 / 4xx / 400-499）、记录状态、来源、响应类型、请求/响应头、错误信息、耗时和大小。应用后列表、分页与“选择筛选结果”共用同一规则；目录筛选仍叠加生效。最多 4 层、15 组、30 个条件，暂不筛选正文。
-- 原始请求、实际请求与响应详情，保留重复 Header 和原始正文。
-- “完整查看”弹窗按需读取已保存的完整报文；JSON 响应支持格式化文本和可折叠树，大数组分批展开。侧栏和弹窗均提供爬虫工具外链，不自动发送抓包内容。
-- 请求重放、编辑重放、批量次数和间隔、取消任务。重放使用 httpx，不执行 hook、不自动跟随重定向。
-- cURL、Python/httpx、HAR、CSV、JSON 导出。一次最多导出 1000 条记录。
-- 操作菜单支持删除选中请求、清空当前批次全部请求、删除当前批次；重放菜单支持单批次删除与清空。删除需确认且无法恢复，正在执行的抓包或重放必须先停止。
-- 每次开始抓包创建独立的 SQLite 会话目录。界面仅显示本次程序启动创建的会话，重新启动后从空列表开始；历史目录仅保留，不自动加载或修改。
-- 中文证书文档与公开 CA 下载；文档代码支持逐行及整段复制，保留原始缩进。
-- 白色 / 黑色主题，主题自动保存；筛选浮层、弹窗和详情展开动画，遵循系统“减少动态效果”设置。实时刷新不重复播放动画。
-- 列表表头固定；搜索、筛选、多条件筛选和“重放选中”直接显示，批量选择、导出、删除与重放次数/间隔在“更多”菜单中。窄窗口工具栏自动重排；点击请求才展示详情，窄窗口使用侧边抽屉，可关闭或按 Esc 收起。
-- 请求列表展示完整 URL，支持域名 → 路径目录树；抓包和重放都可按目录及子目录筛选。
-- 侧栏仅保留请求目录；拖动分隔条调整宽度，低于 80px 完全收起，收起后向右拖动 24px 即展开；侧栏边缘居中的按钮支持点击收起或展开、按住拖动调宽；按住 280ms 进入拖动模式，长按未移动也不触发点击；移动超过 6px 可直接拖动，顶部按钮恢复，宽度与状态自动记忆。顶部“重放记录”切换本次启动的重放批次，“抓包列表”返回最近抓包；历史记录仍在设置中管理。
-- 设置支持直连或 HTTP / HTTPS 外部代理（可选用户名密码），抓包与重放共用。修改连接方式前须停止抓包。
-- 顶部动态显示本机路由选出的局域网 IP 和代理端口，每 15 秒刷新；仅本机监听时明确标注。局域网客户端使用前需把监听地址设为 `0.0.0.0`。
-- 独立历史管理页面 `/history.html`，可按日期 / ID / 类型检索、打开详情、下载完整 ZIP 会话包，或输入完整 ID 确认删除。本次启动会话在主界面停止后管理，历史页只管理归档数据。
+| 功能 | 支持内容 |
+| --- | --- |
+| 抓包策略 | TLS 全部解密、列表解密、全部透传；域名拒绝列表；直连或 HTTP/HTTPS 上游代理 |
+| 请求检索 | 域名与 URL 搜索、常用筛选、多条件 AND/OR 嵌套分组、域名与路径目录树 |
+| 报文详情 | 原始请求、实际发送请求、响应、重复 Header、完整查看弹窗、JSON 格式化与折叠树 |
+| 重放 | 单条、编辑重放、批量重放、次数与间隔、取消任务、独立重放记录 |
+| 参数分析 | 字段名与值片段搜索、出现时间线、来源候选、跨域关联、三维关系图、实时追踪与保存视图 |
+| MCP | 条件查询、按需读取报文、参数追踪、请求对比、重放、实时查询日志 |
+| 数据管理 | 独立 SQLite 会话、历史检索、会话 ZIP 下载、请求删除与批次清空 |
+| 导出 | cURL、Python/httpx、HAR、CSV、JSON |
+| 界面 | 黑白主题、实时刷新、固定表头、可伸缩侧栏与详情面板、窄窗口适配 |
 
-## 性能处理
+多条件筛选通过子组明确括号优先级，每组选择 AND 或 OR。参数全文搜索由链路分析页面提供，列表的多条件筛选暂不查询正文。
 
-实时事件按类型合并；请求列表只重建发生变化的行，会话计数最多每两秒刷新，后台标签页暂停列表刷新。详情预览最多展示 64 KiB，不携带重复 Base64，完整导出与编辑重放仍保留原始数据。
-SQLite 复用最多 8 个连接，常用查询建索引，历史会话摘要缓存；空正文不创建文件，同一请求正文不会在响应阶段重复传输和保存。压缩正文在预览时限制展开大小，解码不占用写入锁。
-导出在服务端逐条写入临时文件，下载结束后删除；CSV 只查询摘要。抓包事件只序列化一次，队列同时限制事件数与字节数；超出容量时显示丢失事件计数。队列仍可能在持续超载时丢弃事件，不保证无限吞吐量。
+参数匹配和时序关系用于提供分析证据，候选来源需要开发者结合业务核实；加密后的参数也可能由客户端本地计算产生。
 
-## 参数处理扩展
+## 配置
 
-在根目录 [hook_template.py](hook_template.py) 直接填写自己的 Hook，或在 `startup.toml` 的 `[extensions].hook_modules` 中列出第三方 Python 模块。类继承 `capture.plugins.BaseHook`、设置唯一 `name`，并按需实现同步 `on_request(flow, context)` 和 `on_response(flow, context)`；两个方法默认都不修改报文。模块导入时注册，在“设置 → 扩展”按注册名添加、启用并调整顺序。更多内置示例在 `capture/plugins/hooks.py`。旧配置里的 `plugins/request_hook.py` 等路径会迁移成同名注册项。
-每次完整启动 `main.py` 时，Web 与代理进程固定该次启动配置中的 Hook 模块集合。运行期间修改 `startup.toml` 不会隐式增删模块；端口或 Hook 执行顺序等设置导致代理重启时，也沿用当前 main 进程启动时的模块集合。完整重启 `main.py` 后才会读取新的模块列表。运行时不要编辑插件源码；源码变更也需完整重启 main。开始新抓包会重建 Hook 实例，但不重新发现模块。更改启用状态与列表前要停止本次抓包；总开关可以在运行中切换。
+| 文件 | 作用 | 生效方式 |
+| --- | --- | --- |
+| [startup.toml](startup.toml) | Web 端口、自动打开浏览器、自动开始记录、MCP 与第三方 Hook 模块 | 完整重启 `main.py` |
+| [config.py](config.py) | 配置模型及带注释的 `DEFAULT_SETTINGS` 默认值 | 未生成运行配置时使用默认值 |
+| `data/settings.json` | 由设置界面保存的代理、TLS、拒绝列表与 Hook 配置 | 按界面提示应用；部分修改要求先停止抓包 |
 
-`flow` 是完整 mitmproxy HTTPFlow，可修改 URL、Query、Headers、Cookie、表单或二进制正文。
-`context` 提供 `session_id`、`config`、`logger`、`now_ms()` 和当前 `hook_name`。任一 Hook 异常时返回 502，错误包含注册名与阶段，后续 Hook 不执行。请求阶段会分别保存原始请求和最终发送请求；响应阶段保存修改后的响应。记录中的 `executed_hooks` 列出成功执行的注册名。
-hook 改写到被拒绝域名时也会被阻止。TLS 透传流量不会触发 HTTP hook。
+已有 `data/settings.json` 时优先使用其中的配置，修改默认字典不会覆盖已保存设置。
+
+关闭启动时自动打开浏览器：
+
+```toml
+[web]
+host = "127.0.0.1"
+port = 8765
+open_browser = false
+```
+
+指定其他启动配置：
+
+```bash
+.venv/bin/python main.py --config /path/to/startup.toml
+```
+
+## Hook 扩展
+
+根目录的 [hook_template.py](hook_template.py) 是默认不修改任何报文的模板。填写处理逻辑，完整重启服务，再在“设置 → 扩展”启用 `template`。
+
+```python
+from capture.plugins import BaseHook
+
+
+class ExampleHook(BaseHook):
+    """为测试请求和响应添加标记。"""
+
+    name = "example"
+    description = "请求与响应标记示例"
+
+    def on_request(self, flow, context):
+        """请求发送前修改请求头。"""
+        flow.request.headers["X-Debug-Request"] = "1"
+
+    def on_response(self, flow, context):
+        """响应返回前修改响应头。"""
+        flow.response.headers["X-Debug-Response"] = "1"
+```
+
+第三方模块需安装到当前 Python 环境或放在项目目录，并加入启动配置：
+
+```toml
+[extensions]
+hook_modules = ["my_hooks", "my_package.capture_hooks"]
+```
+
+模块导入时自动注册子类。`name` 必须唯一，处理方法为同步方法；`flow` 可修改 URL、查询参数、Header、Cookie、表单和二进制正文。`context` 提供会话、配置与日志等信息。
+
+Hook 模块集合在完整启动时固定；修改模块列表或源码后需完整重启 `main.py`。TLS 透传流量不执行 HTTP Hook。重放通过 httpx 发送，不执行 Hook，也不自动跟随重定向。
+
+## MCP 接入
+
+工作台保持运行，由 Agent 客户端启动 stdio MCP：
+
+```bash
+.venv/bin/python mcp_server.py --transport stdio --config startup.toml
+```
+
+也可独立启动 Streamable HTTP MCP：
+
+```bash
+.venv/bin/python mcp_server.py --transport streamable-http
+```
+
+客户端配置、随工作台启动 HTTP MCP 和工具列表见 [MCP 接入说明](capture/support/docs/MCP接入.md)。查询日志可在工作台中打开，实时检查 Agent 查询了哪些请求。
 
 ## 项目目录
 
 ```text
-main.py、mcp_server.py      应用与 MCP 启动入口
-config.py、startup.toml     配置定义与启动配置
-hook_template.py            可编辑的请求/响应 Hook 模板
-requirements.txt            依赖版本
-capture/                    应用代码与资源
-  agent_mcp/               MCP 服务、查询工具和审计
-  backend/                 组合根、生命周期、SQLite、重放、导出和独立链路分析
-    api/                   按领域拆分的 HTTP/WebSocket 路由
-  engine/                  mitmproxy 代理进程、TLS 策略与请求 Hook
-  plugins/                 Hook 基类、注册表与内置示例
-  web/                     原生 Web UI 和本地 Three.js 依赖
-  support/                 不常修改的辅助内容
-    docs/                  使用说明、界面截图与性能测量
-    research/cases/        独立逆向分析案例和复核脚本
-    scripts/               开发与性能测量脚本
-    tests/                 自动化测试
-data/                      运行数据：配置、证书、日志、分析结果和抓包会话
-.venv/                     本地 Python 环境
+capture-workbench/
+├── main.py                   # Web 服务启动入口
+├── mcp_server.py             # MCP 启动入口
+├── config.py                 # 配置模型与默认配置字典
+├── startup.toml              # 进程启动配置
+├── hook_template.py          # 用户可直接编辑的 Hook 模板
+├── requirements.txt          # Python 依赖
+├── README.md
+├── capture/                  # 应用代码与资源
+│   ├── agent_mcp/            # MCP 工具、API 客户端与查询审计
+│   ├── backend/              # 后端业务与基础设施
+│   │   ├── api/              # 按功能拆分的 HTTP/WebSocket 路由
+│   │   ├── analysis/         # 参数提取与请求分析
+│   │   ├── links/            # 独立进程链路分析、全文搜索与任务管理
+│   │   ├── context.py        # 依赖组合与服务生命周期
+│   │   └── storage.py        # SQLite 会话与正文存储
+│   ├── engine/               # 代理进程、采集、TLS 策略与 Hook 执行
+│   ├── plugins/              # BaseHook、自动注册与内置处理器
+│   ├── web/                  # Web 页面、交互脚本与样式
+│   │   └── vendor/three/     # 本地三维图依赖与许可证
+│   └── support/              # 文档、测试与开发辅助内容
+│       ├── docs/             # 使用、架构、MCP、证书与性能说明
+│       ├── research/         # 研究目录说明；本机案例不上传
+│       ├── scripts/          # 性能测量等开发脚本
+│       └── tests/            # 自动化测试
+├── data/                     # 运行时生成，Git 忽略
+└── .venv/                    # 本地安装，Git 忽略
 ```
 
-`data/` 和 `.venv/` 留在项目根目录：前者保存正在使用的 SQLite 会话与 CA，后者供 PyCharm 和启动命令使用。`main.py`、`mcp_server.py` 与配置文件也保留在根目录。其余代码和资源都在 `capture/`，其中不常改动的内容统一放在 `capture/support/`。
+## 会话与数据
 
-`data/settings.json` 是全局配置；`data/certificates/` 包含私钥，不要分享整个目录。每次会话保存在 `data/captures/<时间_ID>/`，其中包括 `capture.sqlite` 和 `bodies/`。
+仓库不需要携带 SQLite 文件。首次运行会创建所需运行目录，创建抓包会话时自动初始化数据库和表结构。
 
-每个会话保存策略快照。数据库启用 WAL，运行中不要单独复制主数据库文件。停止后会进行 checkpoint；正文也要一起保存。
+每次开始抓包保存到 `data/captures/<时间_ID>/`，包含 `capture.sqlite` 与 `bodies/`。程序重新启动后主列表从本次启动的数据开始，旧会话保留在历史管理中；重放数据独立管理。
 
-## 第一版边界
+`data/` 还保存运行配置、证书、查询日志和分析结果。分享会话推荐使用历史管理中的 ZIP 导出；SQLite 使用 WAL，运行中单独复制主数据库文件可能遗漏数据。CA 目录包含私钥，不能作为公开项目资源上传。
 
-断点编辑、Map Local / Remote、差异对比、WebSocket 消息面板、导入、独立新建请求及 SQLite 整理管理后续逐步添加。
-当前支持显式 HTTP 代理下的 HTTP/HTTPS，未实现 QUIC/HTTP3 抓包。
-已知大响应和 SSE 流式转发，不保存完整正文。其他正文最多保存 2 MiB；截断请求不能重放或导出代码。
-事件队列有界，满时丢弃并计数；首版不是零丢包归档工具。代理退出时仍在队列中的事件可能未落盘。
+## 性能与当前边界
 
-## 验证
+- 实时事件合并、列表增量刷新、后台标签页暂停刷新；详情预览限制大小，完整报文按需读取。
+- SQLite 连接复用与索引、会话摘要缓存、有界事件队列、导出逐条写入临时文件。设计与测量见 [性能优化说明](capture/support/docs/性能优化.md)。
+- 当前支持显式 HTTP 代理下的 HTTP/HTTPS，不支持 QUIC/HTTP3 抓包或 WebSocket 消息面板。
+- 正文默认最多保存 2 MiB；大响应和 SSE 采用流式转发，可能不保存完整正文。截断请求不能重放或导出代码。
+- 队列持续超载时可能丢弃事件并显示计数，不保证无限吞吐或零丢失归档。
+- 断点编辑、Map Local/Remote、报文导入等功能尚未实现。
+
+## 开发与验证
 
 ```bash
 .venv/bin/python -m pip install pytest
-.venv/bin/python -m pytest -q
+.venv/bin/python -m pytest -q capture/support/tests
 ```
+
+| 文档 | 适合谁 |
+| --- | --- |
+| [使用指南](capture/support/docs/使用指南.md) | 首次使用与日常操作 |
+| [架构与模块地图](capture/support/docs/架构与模块_AI.md) | 开发者、第三方扩展与 AI 接手开发 |
+| [数据链路说明](capture/support/docs/数据链路.md) | 参数搜索、来源追踪与三维关系分析 |
+| [MCP 接入](capture/support/docs/MCP接入.md) | Agent 客户端配置与查询工具使用 |
+| [证书安装](capture/support/docs/证书安装.md) | HTTPS 解密与设备证书信任 |
+| [优化建议与检查记录](capture/support/docs/优化建议与检查记录.md) | 后续开发与已知改进项 |

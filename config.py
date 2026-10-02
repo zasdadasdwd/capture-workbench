@@ -19,6 +19,8 @@ class WebStartup(BaseModel):
 
     host: Literal["127.0.0.1", "localhost"] = "127.0.0.1"
     port: int = Field(default=8765, ge=1024, le=65535)
+    # 服务成功监听后打开默认浏览器；无桌面环境可关闭。
+    open_browser: bool = True
 
 
 class ProxyStartup(BaseModel):
