@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>流量工作台 · Capture</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script src="/theme.js"></script>
+    <link rel="stylesheet" href="/style.css?v=20261002-detail-actions-e" />
+  </head>
+  <body>
+    <header>
+      <button
+        id="toggleSidebar"
+        class="sidebar-toggle"
+        type="button"
+        aria-label="收起请求目录"
+        aria-expanded="true"
+        aria-controls="requestSidebar"
+      >
+        ☰
+      </button>
+      <div class="brand">
+        <img class="logo" src="/favicon.svg" alt="Capture" />
+        <div><strong>Capture</strong><small>流量工作台</small></div>
+      </div>
+      <span id="engineStatus" class="badge">代理已停止</span
+      ><span id="proxyAddress"></span
+      ><small id="proxyScope" class="muted"></small>
+      <div class="header-actions">
+        <button id="mobileSettings" type="button" aria-label="设置" title="设置">⚙</button>
+        <button
+          id="themeToggle"
+          class="theme-toggle"
+          aria-label="切换到黑色主题"
+          aria-pressed="false"
+        >
+          <span aria-hidden="true">◐</span><span id="themeLabel">黑色</span>
+        </button>
+        <span id="liveStatus" class="muted">连接中</span
+        ><button id="stop" disabled>停止抓包</button
+        ><button id="start" class="primary">开始抓包</button>
+      </div>
+    </header>
+    <div class="workspace">
+      <aside id="requestSidebar">
+        <div class="section-title directory-heading">
+          <span>请求目录</span>
+          <div class="directory-heading-actions">
+            <button id="clearDirectory" title="显示全部路径">↺</button>
+          </div>
+        </div>
+        <div id="directoryTree" class="directory-tree">
+          <p class="muted">选择会话后显示目录</p>
+        </div>
+        <div class="aside-footer">
+          <button id="openSettings" class="footer-settings" aria-label="设置">
+            <span aria-hidden="true" class="settings-icon">⚙</span
+            ><span class="sidebar-label">设置</span>
+          </button>
+          <a
+            href="https://spidertools.cn/#/"
+            target="_blank"
+            rel="noopener noreferrer"
+            >爬虫工具 ↗</a
+          >
+          <small>管理界面仅在本机开放</small>
+        </div>
+      </aside>
+      <div class="sidebar-divider" id="sidebarDivider">
+        <div
+          id="sidebarResize"
+          class="sidebar-resize"
+          role="separator"
+          tabindex="0"
+          aria-label="调整请求目录宽度"
+          aria-orientation="vertical"
+          aria-valuemin="0"
+          aria-valuemax="480"
+          aria-valuenow="232"
+        ></div>
+        <button
+          id="collapseSidebar"
+          class="sidebar-edge-toggle"
+          type="button"
+          aria-label="一键收起请求目录"
+          title="收起侧栏"
+          aria-controls="requestSidebar"
+          aria-expanded="true"
+        >
+          ‹
+        </button>
+      </div>
+      <main>
+        <section class="policy-bar">
+          <div>
+            <span class="eyebrow">连接策略</span
+            ><strong id="policySummary">列表解密 · 拒绝关闭</strong>
+          </div>
+          <span id="policyVersion" class="muted"></span>
+          <div class="traffic-navigation">
+            <button id="showCapture" type="button">抓包列表</button>
+            <details id="replayMenu" class="replay-menu">
+              <summary>重放记录 <span id="replayCount">0</span></summary>
+              <div class="replay-menu-panel">
+                <div class="replay-menu-heading">
+                  <strong>本次启动的重放记录</strong
+                  ><button id="clearReplays" type="button">清空</button
+                  ><button
+                    id="refreshSessions"
+                    type="button"
+                    aria-label="刷新重放记录"
+                  >
+                    ↻
+                  </button>
+                </div>
+                <div id="replayRecords"></div>
+              </div>
+            </details>
+          </div>
+        </section>
+        <section class="traffic">
+          <div class="toolbar">
+            <div class="toolbar-search">
+              <input id="search" placeholder="搜索关键词…" aria-label="搜索流量" />
+              <span id="total" class="muted">0 条记录</span>
+            </div>
+            <div class="toolbar-actions">
+              <button id="toggleFilters" type="button" aria-expanded="false">筛选</button>
+              <button id="openAdvancedFilters" type="button" aria-pressed="false">多条件筛选</button>
+              <button id="repeat" type="button" class="primary" disabled>重放选中 <span id="toolbarSelectionCount" hidden></span></button>
+              <details id="flowActions" class="flow-actions">
+              <summary>更多 <span id="actionCount" hidden></span></summary>
+              <div class="flow-actions-panel">
+                <div class="selection-actions">
+                  <button id="selectFiltered" type="button">选择筛选结果</button
+                  ><button id="clearSelection" type="button">取消选择</button>
+                </div>
+                <div class="bulk-bar">
+                  <span id="selectionCount">已选择 0 条</span
+                  ><button id="editRepeat">编辑并重放</button
+                  ><label
+                    >次数
+                    <input
+                      id="repeatCount"
+                      type="number"
+                      value="1"
+                      min="1"
+                      max="20" /></label
+                  ><label
+                    >间隔秒
+                    <input
+                      id="repeatInterval"
+                      type="number"
+                      value="0"
+                      min="0"
+                      max="60"
+                      step="0.1" /></label
+                  ><select id="exportFormat">
+                    <option value="har">HAR</option>
+                    <option value="curl">cURL</option>
+                    <option value="python">Python / httpx</option>
+                    <option value="csv">CSV</option>
+                    <option value="json">JSON</option></select
+                  ><button id="export">导出</button>
+                </div>
+                <div class="delete-actions">
+                  <button id="deleteSelected" type="button">删除选中</button>
+                  <button id="clearSession" type="button">清空当前记录</button>
+                  <button id="deleteSession" type="button">删除当前批次</button>
+                  <small class="muted"
+                    >正在抓包或重放时，请先停止；删除后无法恢复。</small
+                  >
+                </div>
+              </div>
+            </details>
+            </div>
+            <div id="filterPanel" class="filter-panel" hidden>
+              <label
+                >关键词范围<select id="searchScope">
+                  <option value="url">域名 / URL</option>
+                  <option value="headers">请求 / 响应 Headers</option>
+                  <option value="all">URL / Headers / 错误</option>
+                </select></label
+              >
+              <label
+                >域名<input
+                  id="filterHost"
+                  placeholder="api.example.com 或 *.example.com"
+              /></label>
+              <label
+                >方法<select id="filterMethod">
+                  <option value="">全部方法</option>
+                  <option>GET</option>
+                  <option>POST</option>
+                  <option>PUT</option>
+                  <option>PATCH</option>
+                  <option>DELETE</option>
+                  <option>HEAD</option>
+                  <option>OPTIONS</option>
+                  <option>CONNECT</option>
+                </select></label
+              >
+              <label
+                >状态码<input id="filterCode" placeholder="200 / 4xx / 400-499"
+              /></label>
+              <label
+                >记录状态<select id="filterStatus">
+                  <option value="">全部状态</option>
+                  <option value="complete">完成</option>
+                  <option value="pending">等待响应</option>
+                  <option value="receiving">接收中</option>
+                  <option value="blocked">已阻止</option>
+                  <option value="passthrough">TLS 透传</option>
+                  <option value="error">错误</option>
+                  <option value="interrupted">中断</option>
+                </select></label
+              >
+              <label
+                >来源<select id="filterSource">
+                  <option value="">全部来源</option>
+                  <option value="capture">抓包</option>
+                  <option value="replay">重放</option>
+                </select></label
+              >
+              <label
+                >响应类型<input
+                  id="filterType"
+                  placeholder="json / html / image / protobuf"
+              /></label>
+              <label
+                >最小耗时 ms<input
+                  id="filterMinDuration"
+                  type="number"
+                  min="0"
+                  placeholder="不限"
+              /></label>
+              <label
+                >最大耗时 ms<input
+                  id="filterMaxDuration"
+                  type="number"
+                  min="0"
+                  placeholder="不限"
+              /></label>
+              <label
+                >最小响应大小 B<input
+                  id="filterMinSize"
+                  type="number"
+                  min="0"
+                  placeholder="不限"
+              /></label>
+              <div class="filter-help">
+                <span id="filterHelpText">条件之间为“同时满足”；关键词忽略大小写，不搜索正文。</span
+                ><button id="resetFilters">重置全部筛选</button>
+              </div>
+            </div>
+          </div>
+          <div id="directoryFilter" class="directory-filter" hidden></div>
+          <div id="jobs"></div>
+          <div id="contentGrid" class="content-grid">
+            <div class="flow-list">
+              <div class="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>
+                        <input
+                          id="selectPage"
+                          type="checkbox"
+                          aria-label="选择本页"
+                        />
+                      </th>
+                      <th>状态</th>
+                      <th>方法</th>
+                      <th>请求地址</th>
+                      <th>耗时</th>
+                      <th>大小</th>
+                      <th>重放</th>
+                    </tr>
+                  </thead>
+                  <tbody id="flows"></tbody>
+                </table>
+                <div id="empty" class="empty">
+                  <span>⌁</span>
+                  <h2>等待第一条请求</h2>
+                  <p>
+                    将客户端代理设置为上方地址；点击开始抓包才保存请求。<br />HTTPS
+                    内容需要安装证书并开启目标域名解密。
+                  </p>
+                </div>
+              </div>
+              <div class="pagination">
+                <button id="previous">上一页</button
+                ><span id="pageInfo">第 1 页</span
+                ><button id="next">下一页</button>
+              </div>
+            </div>
+            <section id="detailPanel" class="detail" hidden>
+              <div
+                id="detailResize"
+                class="detail-resize"
+                role="separator"
+                tabindex="0"
+                aria-label="调整请求详情宽度"
+                aria-orientation="vertical"
+                aria-valuemin="0"
+                aria-valuemax="900"
+                aria-valuenow="520"
+                title="拖动调整宽度，向右拖窄可收起"
+              ></div>
+              <div class="detail-header">
+                <strong>请求详情</strong>
+                <button
+                  id="closeDetail"
+                  type="button"
+                  aria-label="关闭请求详情"
+                  title="关闭请求详情"
+                >✕</button>
+              </div>
+              <div class="detail-actions" aria-label="请求操作">
+                <div class="detail-main-actions">
+                  <button id="openFullRequest" type="button">完整查看</button>
+                  <button
+                  id="detailLinks"
+                  type="button"
+                  title="可先选中 Cookie 或正文片段，再点击分析"
+                >
+                  分析 ✦</button>
+                  <button id="detailReplay" type="button">重放</button>
+                  <button id="detailEditReplay" type="button">编辑重放</button>
+                </div>
+                <details class="detail-policy-actions">
+                  <summary>域名策略</summary>
+                  <div class="detail-policy-options">
+                    <button id="addDecrypt" type="button">加入解密列表</button>
+                    <button id="addBlock" type="button">加入拒绝列表</button>
+                  </div>
+                </details>
+              </div>
+              <div id="detailSummary" class="detail-summary muted">
+                选择一条记录查看详情
+              </div>
+              <div class="tabs" role="group" aria-label="请求详情内容">
+                <button data-tab="request" class="active" aria-pressed="true">发送请求</button
+                ><button data-tab="original_request" aria-pressed="false">原始请求</button
+                ><button data-tab="response" aria-pressed="false">响应</button
+                ><button data-tab="info" aria-pressed="false">连接信息</button>
+              </div>
+              <div id="detailMessage" class="message-layout">
+                <details class="message-headers" open>
+                  <summary>
+                    <strong id="detailHeadersTitle">请求头</strong
+                    ><span id="detailHeadersCount" class="muted"></span>
+                  </summary>
+                  <div class="message-header-actions">
+                    <button id="detailCopyHeaders" type="button">
+                      复制头部
+                    </button>
+                  </div>
+                  <div id="detailHeaders" class="message-header-table"></div>
+                </details>
+                <div class="message-section-bar">
+                  <strong id="detailBodyTitle">请求体</strong
+                  ><button id="detailCopyBody" type="button">复制正文</button>
+                </div>
+                <div
+                  id="detailNotice"
+                  class="viewer-notice"
+                  role="status"
+                ></div>
+              </div>
+              <pre id="detailContent">请求体将在这里显示。</pre>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+    <dialog id="analysisModeDialog" aria-labelledby="analysisModeTitle">
+      <form method="dialog">
+        <h2 id="analysisModeTitle">如何分析这份数据？</h2>
+        <p id="analysisModeScope" class="muted"></p>
+        <p>
+          停止抓包可固定数据；实时追踪会继续记录新请求，并定期更新关联。两种方式下代理都继续转发。
+        </p>
+        <div class="dialog-actions">
+          <button value="cancel">取消</button>
+          <button value="stop">停止抓包并分析</button>
+          <button value="live" class="primary">保持抓包，实时追踪</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="settingsDialog" aria-labelledby="settingsTitle">
+      <form id="settingsForm" class="settings-shell" novalidate>
+        <nav
+          class="settings-nav"
+          role="tablist"
+          aria-label="设置分类"
+          aria-orientation="vertical"
+        >
+          <h2 id="settingsTitle">设置</h2>
+          <div class="settings-nav-group" role="presentation">工作台</div>
+          <button
+            type="button"
+            data-settings-tab="general"
+            data-settings-label="外观与偏好"
+            role="tab"
+            id="settingsTab-general"
+            aria-controls="settingsPanel-general"
+            tabindex="0"
+            aria-selected="true"
+          >
+            <span aria-hidden="true">◐</span>外观与偏好
+          </button>
+          <button
+            type="button"
+            data-settings-tab="history"
+            data-settings-label="历史会话"
+            role="tab"
+            id="settingsTab-history"
+            aria-controls="settingsPanel-history"
+            tabindex="-1"
+            aria-selected="false"
+          >
+            <span aria-hidden="true">◷</span>历史会话
+          </button>
+          <div class="settings-nav-group" role="presentation">网络与抓包</div>
+          <button
+            type="button"
+            data-settings-tab="network"
+            data-settings-label="代理连接"
+            role="tab"
+            id="settingsTab-network"
+            aria-controls="settingsPanel-network"
+            tabindex="-1"
+            aria-selected="false"
+          >
+            <span aria-hidden="true">↗</span>代理连接
+          </button>
+          <button
+            type="button"
+            data-settings-tab="tls"
+            data-settings-label="HTTPS 解密"
+            role="tab"
+            id="settingsTab-tls"
+            aria-controls="settingsPanel-tls"
+            tabindex="-1"
+            aria-selected="false"
+          >
+            <span aria-hidden="true">◇</span>HTTPS 解密
+          </button>
+          <button
+            type="button"
+            data-settings-tab="certificate"
+            data-settings-label="CA 证书"
+            role="tab"
+            id="settingsTab-certificate"
+            aria-controls="settingsPanel-certificate"
+            tabindex="-1"
+            aria-selected="false"
+          >
+            <span aria-hidden="true">▣</span>CA 证书
+          </button>
+          <button
+            type="button"
+            data-settings-tab="blocking"
+            data-settings-label="域名拦截"
+            role="tab"
+            id="settingsTab-blocking"
+            aria-controls="settingsPanel-blocking"
+            tabindex="-1"
+            aria-selected="false"
+          >
+            <span aria-hidden="true">⊘</span>域名拦截
+          </button>
+          <div class="settings-nav-group" role="presentation">开发者</div>
+          <button
+            type="button"
+            data-settings-tab="extensions"
+            data-settings-label="请求与响应 Hook"
+            role="tab"
+            id="settingsTab-extensions"
+            aria-controls="settingsPanel-extensions"
+            tabindex="-1"
+            aria-selected="false"
+          >
+            <span aria-hidden="true">⌘</span>请求与响应 Hook
+          </button>
+          <button
+            type="button"
+            data-settings-tab="mcp"
+            data-settings-label="MCP 查询日志"
+            role="tab"
+            id="settingsTab-mcp"
+            aria-controls="settingsPanel-mcp"
+            tabindex="-1"
+            aria-selected="false"
+          >
+            <span aria-hidden="true">⌁</span>MCP 查询日志
+          </button>
+        </nav>
+        <div class="settings-main">
+          <div class="settings-heading">
+            <h3 id="settingsPanelTitle">外观与偏好</h3>
+            <button
+              type="button"
+              data-close="settingsDialog"
+              aria-label="关闭设置"
+            >
+              ✕
+            </button>
+          </div>
+          <div class="settings-content">
+            <section
+              data-settings-panel="general"
+              role="tabpanel"
+              id="settingsPanel-general"
+              aria-labelledby="settingsTab-general"
+            >
+              <p class="settings-intro">调整工作台的外观与使用偏好。</p>
+              <div class="setting-row">
+                <div>
+                  <label for="settingsTheme">外观</label>
+                  <p>选择工作台的颜色主题。</p>
+                </div>
+                <select id="settingsTheme">
+                  <option value="light">白色</option>
+                  <option value="dark">黑色</option>
+                </select>
+              </div>
+              <div class="setting-row">
+                <div>
+                  <strong>会话保存</strong>
+                  <p>
+                    每次开始抓包创建独立会话。重新启动后，之前的数据进入历史归档。
+                  </p>
+                </div>
+                <span class="setting-value">自动保存</span>
+              </div>
+              <div class="setting-row">
+                <div>
+                  <strong>动画效果</strong>
+                  <p>
+                    主题、面板和弹窗使用过渡动画，并遵循系统的“减少动态效果”设置。
+                  </p>
+                </div>
+                <span class="setting-value">跟随系统</span>
+              </div>
+            </section>
+            <section
+              data-settings-panel="network"
+              role="tabpanel"
+              id="settingsPanel-network"
+              aria-labelledby="settingsTab-network"
+              hidden
+            >
+              <p class="settings-intro">
+                设置客户端连接地址，以及请求发往目标服务器的方式。
+              </p>
+              <div class="setting-row">
+                <div>
+                  <label for="listenHost">监听地址</label>
+                  <p>本机使用 127.0.0.1；其他设备连接时选择局域网。</p>
+                </div>
+                <select id="listenHost">
+                  <option value="127.0.0.1">仅本机 · 127.0.0.1</option>
+                  <option value="0.0.0.0">局域网 · 0.0.0.0</option>
+                </select>
+              </div>
+              <div class="setting-row">
+                <div>
+                  <label for="listenPort">代理端口</label>
+                  <p>客户端 HTTP 和 HTTPS 代理均使用此端口。</p>
+                </div>
+                <input
+                  id="listenPort"
+                  type="number"
+                  min="1024"
+                  max="65535"
+                  required
+                />
+              </div>
+              <div class="setting-row">
+                <div>
+                  <label for="connectionMode">出站连接</label>
+                  <p>抓包和重放共用此连接方式。</p>
+                </div>
+                <select id="connectionMode">
+                  <option value="direct">直连</option>
+                  <option value="upstream">外部代理</option>
+                </select>
+              </div>
+              <div id="upstreamProxyLabel" class="setting-block" hidden>
+                <label for="upstreamProxy">外部代理地址</label
+                ><input
+                  id="upstreamProxy"
+                  placeholder="http://127.0.0.1:7890"
+                  autocomplete="off"
+                />
+                <p>
+                  支持 HTTP / HTTPS，可使用 http://user:password@host:port
+                  填写认证信息。
+                </p>
+              </div>
+              <p class="settings-note">
+                修改监听地址、端口或外部代理前，请先停止抓包。
+              </p>
+            </section>
+            <section
+              data-settings-panel="tls"
+              role="tabpanel"
+              id="settingsPanel-tls"
+              aria-labelledby="settingsTab-tls"
+              hidden
+            >
+              <p class="settings-intro">选择哪些 HTTPS 连接需要解密。</p>
+              <div class="setting-row">
+                <div>
+                  <label for="tlsMode">解密模式</label>
+                  <p>透传连接保留加密，不采集 HTTP 正文。</p>
+                </div>
+                <select id="tlsMode">
+                  <option value="list">仅列表解密</option>
+                  <option value="all">全部解密</option>
+                  <option value="passthrough">全部透传</option>
+                </select>
+              </div>
+              <div class="setting-block">
+                <label for="tlsDomains">解密域名</label>
+                <p>
+                  每行一个域名。*.example.com 不包含根域名。修改对新连接生效。
+                </p>
+                <textarea
+                  id="tlsDomains"
+                  rows="5"
+                  placeholder="api.example.com&#10;*.example.org"
+                ></textarea>
+              </div>
+            </section>
+            <section
+              data-settings-panel="certificate"
+              role="tabpanel"
+              id="settingsPanel-certificate"
+              aria-labelledby="settingsTab-certificate"
+              hidden
+            >
+              <p class="settings-intro">
+                管理本工具的 CA 证书，供客户端信任并解密 HTTPS 流量。
+              </p>
+              <div class="setting-row">
+                <div>
+                  <strong>证书安装说明</strong>
+                  <p>查看 Windows、macOS、手机等客户端的安装与信任步骤。</p>
+                </div>
+                <a
+                  class="settings-link"
+                  href="/docs/certificate"
+                  target="_blank"
+                  rel="noopener"
+                  >查看说明 ↗</a
+                >
+              </div>
+              <div class="setting-row">
+                <div>
+                  <strong>下载 CA 证书</strong>
+                  <p>下载此实例的公开证书，供客户端安装。</p>
+                </div>
+                <a
+                  class="settings-link"
+                  href="/api/certificate"
+                  download="capture-ca.pem"
+                  >下载证书</a
+                >
+              </div>
+              <div class="setting-block">
+                <strong>证书指纹</strong>
+                <p>安装前可核对 SHA-256 指纹，确认使用的是当前实例的证书。</p>
+                <small id="certificateInfo" class="muted fingerprint"></small>
+              </div>
+              <p class="settings-note">
+                代理首次启动时自动生成证书。每次启动会继续使用同一份 CA。
+              </p>
+            </section>
+            <section
+              data-settings-panel="blocking"
+              role="tabpanel"
+              id="settingsPanel-blocking"
+              aria-labelledby="settingsTab-blocking"
+              hidden
+            >
+              <p class="settings-intro">拒绝规则优先于 TLS 解密和请求扩展。</p>
+              <div class="setting-row">
+                <div>
+                  <label for="blockingEnabled">开启域名拒绝</label>
+                  <p>命中列表的目标连接或请求会被阻止。</p>
+                </div>
+                <input
+                  id="blockingEnabled"
+                  class="settings-switch"
+                  type="checkbox"
+                  role="switch"
+                />
+              </div>
+              <div class="setting-block">
+                <label for="blockedDomains">拒绝域名</label>
+                <p>每行一个域名，支持 *.example.com。</p>
+                <textarea
+                  id="blockedDomains"
+                  rows="6"
+                  placeholder="ads.example.com"
+                ></textarea>
+              </div>
+            </section>
+            <section
+              data-settings-panel="extensions"
+              role="tabpanel"
+              id="settingsPanel-extensions"
+              aria-labelledby="settingsTab-extensions"
+              hidden
+            >
+              <p class="settings-intro">
+                在请求发送前或响应返回后，按需修改参数、Headers 或正文。
+              </p>
+              <div class="setting-row">
+                <div>
+                  <label for="hookEnabled">报文 Hook</label>
+                  <p>
+                    按下面的顺序执行已启用的
+                    Hook。修改列表或注册类后需重新开始抓包。
+                  </p>
+                </div>
+                <input
+                  id="hookEnabled"
+                  class="settings-switch"
+                  type="checkbox"
+                  role="switch"
+                />
+              </div>
+              <div
+                id="hookList"
+                class="hook-list"
+                aria-label="报文 Hook 列表"
+              ></div>
+              <div class="hook-add">
+                <select id="newHookName" aria-label="选择已注册的 Hook"></select
+                ><button id="addHook" type="button">添加 Hook</button
+                ><button
+                  id="refreshHooks"
+                  type="button"
+                  aria-label="刷新已注册的 Hook"
+                >
+                  ↻
+                </button>
+              </div>
+              <p class="settings-note">
+                直接编辑根目录 hook_template.py，继承 BaseHook 并设置唯一 name。
+                按需实现同步 on_request 或 on_response；默认两个阶段都不修改报文。
+                重启服务后自动注册。Hook 出错会返回 502，并显示注册名和阶段。
+              </p>
+            </section>
+            <section
+              data-settings-panel="mcp"
+              role="tabpanel"
+              id="settingsPanel-mcp"
+              aria-labelledby="settingsTab-mcp"
+              hidden
+            >
+              <p class="settings-intro">
+                查看 Agent 调用了哪些工具、筛选了哪些请求。
+              </p>
+              <div class="setting-row">
+                <div>
+                  <strong>MCP 查询日志</strong>
+                  <p>
+                    实时显示查询条件、请求 ID、耗时及错误，敏感值只保留摘要。
+                  </p>
+                </div>
+                <a class="settings-link" href="/mcp-logs.html"
+                  >打开实时日志 ↗</a
+                >
+              </div>
+              <p class="settings-note">
+                日志保存在 data/logs/mcp.jsonl。未运行 MCP
+                或尚无调用时，页面显示为空；直接分析 API 的审计单独标记来源。
+              </p>
+            </section>
+            <section
+              data-settings-panel="history"
+              role="tabpanel"
+              id="settingsPanel-history"
+              aria-labelledby="settingsTab-history"
+              hidden
+            >
+              <p class="settings-intro">管理之前启动保存的抓包与重放会话。</p>
+              <div class="setting-row">
+                <div>
+                  <strong>历史会话管理</strong>
+                  <p>查看请求、下载完整会话包，或删除不再需要的归档。</p>
+                </div>
+                <a class="settings-link" href="/history.html">打开管理页 ↗</a>
+              </div>
+              <p class="settings-note">
+                历史数据仅在打开管理页时加载，本次启动的会话不会出现在归档列表中。
+              </p>
+            </section>
+          </div>
+          <div class="settings-footer">
+            <span id="settingsSaveHint">外观即时生效，其他修改保存后生效。</span
+            ><button type="button" data-close="settingsDialog">取消</button
+            ><button class="primary" type="submit">保存设置</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="editDialog">
+      <form id="editForm">
+        <div class="dialog-heading">
+          <h2>编辑并重放</h2>
+          <button type="button" data-close="editDialog">✕</button>
+        </div>
+        <p class="muted">
+          使用 httpx 发出新请求，不执行 hook，不自动跟随重定向。
+        </p>
+        <div class="form-row">
+          <label>方法<input id="editMethod" required /></label
+          ><label class="grow"
+            >URL（包括查询参数）<input id="editUrl" required
+          /></label>
+        </div>
+        <label
+          >Headers · JSON 键值对列表<textarea
+            id="editHeaders"
+            rows="6"
+            spellcheck="false"
+          ></textarea></label
+        ><label
+          >正文格式<select id="editBodyFormat">
+            <option value="base64">Base64 · 保留原始字节与编码</option>
+            <option value="text">UTF-8 文本 · 移除 Content-Encoding</option>
+          </select></label
+        ><label
+          >正文<textarea id="editBody" rows="8" spellcheck="false"></textarea>
+        </label>
+        <div class="dialog-footer">
+          <button type="button" data-close="editDialog">取消</button
+          ><button class="primary">发送新请求</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="requestViewer" aria-labelledby="requestViewerTitle">
+      <div class="viewer-heading">
+        <h2 id="requestViewerTitle">完整请求</h2>
+        <a
+          href="https://spidertools.cn/#/"
+          target="_blank"
+          rel="noopener noreferrer"
+          >爬虫工具 ↗</a
+        >
+        <button
+          type="button"
+          data-close="requestViewer"
+          aria-label="关闭完整请求"
+        >
+          ✕
+        </button>
+      </div>
+      <div id="viewerUrl" class="viewer-url"></div>
+      <div class="viewer-toolbar">
+        <div class="tabs" aria-label="查看内容">
+          <button type="button" data-viewer-part="request">发送请求</button>
+          <button type="button" data-viewer-part="original_request">
+            原始请求
+          </button>
+          <button type="button" data-viewer-part="response">响应</button>
+        </div>
+        <div class="viewer-actions" aria-label="完整请求操作">
+          <button
+            id="viewerLinks"
+            type="button"
+            title="可先选中 Cookie 或正文片段，再点击分析"
+          >分析 ✦</button>
+          <button id="viewerReplay" type="button">重放</button>
+          <button id="viewerEditReplay" type="button">编辑重放</button>
+          <button id="viewerCopyMessage" type="button">复制完整报文</button>
+        </div>
+      </div>
+      <details class="message-headers" open>
+        <summary>
+          <strong id="viewerHeadersTitle">请求头</strong
+          ><span id="viewerHeadersCount" class="muted"></span>
+        </summary>
+        <div class="message-header-actions">
+          <button id="viewerCopyHeaders" type="button">复制头部</button>
+        </div>
+        <div id="viewerHeaders" class="message-header-table"></div>
+      </details>
+      <div class="message-section-bar">
+        <strong id="viewerBodyTitle">请求体</strong>
+        <select id="viewerMode" aria-label="正文显示方式">
+          <option value="raw">原始正文</option>
+          <option value="formatted">JSON 格式化</option>
+          <option value="tree">JSON 树</option>
+        </select>
+        <button id="viewerCopy" type="button">复制正文</button>
+        <button id="viewerCollapse" type="button" hidden>收起节点</button>
+      </div>
+      <div id="viewerNotice" role="status" class="viewer-notice"></div>
+      <pre id="viewerRaw" tabindex="0"></pre>
+      <div id="viewerTree" class="json-tree" hidden></div>
+    </dialog>
+    <dialog id="advancedFilterDialog" class="advanced-filter-dialog" aria-labelledby="advancedFilterTitle">
+      <div class="dialog-heading">
+        <h2 id="advancedFilterTitle">高级筛选</h2>
+        <button id="closeAdvancedFilters" type="button" aria-label="关闭高级筛选">×</button>
+      </div>
+      <p class="muted">每组选择“全部满足”或“任一满足”；子组就是括号。最多 4 层、30 个条件。响应正文暂不参与此处筛选。</p>
+      <div id="advancedGroups" class="advanced-groups"></div>
+      <div class="advanced-preview">
+        <strong>实际逻辑</strong><code id="advancedLogic"></code>
+        <span id="advancedMatchCount" role="status">输入条件后显示匹配数量</span>
+      </div>
+      <div class="dialog-footer">
+        <button id="clearAdvancedFilters" type="button">清空条件</button>
+        <button id="cancelAdvancedFilters" type="button">取消</button>
+        <button id="applyAdvancedFilters" type="button" class="primary">应用筛选</button>
+      </div>
+    </dialog>
+    <div id="toast" role="status"></div>
+    <script src="/request-viewer.js?v=20261001-analysis-selection"></script>
+    <script src="/sidebar.js"></script>
+    <script src="/app.js?v=20261002-detail-actions-c"></script>
+    <script src="/detail-resizer.js?v=20261001-fine-resize"></script>
+  </body>
+</html>

@@ -1,0 +1,23 @@
+# 进程启动配置：修改后重启 main.py 生效。
+# TLS、域名和 hook 热更新策略由 Web UI 写入 data/settings.json。
+
+[web]
+host = "127.0.0.1"
+port = 8765
+
+[proxy]
+# true 时，管理服务启动后自动创建抓包会话并启动代理。
+autostart = false
+
+[mcp]
+# true 可随工作台启动 HTTP MCP；stdio 由 Agent 客户端独立启动。
+enabled = false
+transport = "stdio"           # stdio / streamable-http
+host = "127.0.0.1"            # HTTP transport 的监听地址
+port = 8766                   # HTTP transport 的监听端口
+entrypoint = "capture.agent_mcp.server:main"
+
+[extensions]
+# 第三方 Hook 的 Python 模块名；模块需要安装在当前 .venv 或位于项目目录。
+# 示例：hook_modules = ["my_hooks", "my_package.capture_hooks"]
+hook_modules = []

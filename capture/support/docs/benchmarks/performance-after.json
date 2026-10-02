@@ -1,0 +1,18 @@
+{
+  "rows": 50000,
+  "body_bytes": 8388608,
+  "directories": {
+    "median_ms": 0.22,
+    "first_ms": 720.486,
+    "peak_kib": 76.8
+  },
+  "preview": {
+    "median_ms": 0.333,
+    "first_ms": 1.173,
+    "peak_kib": 262.8
+  },
+  "full_view": {
+    "raw_json_bytes": 30758402,
+    "text_json_bytes": 8388743
+  }
+}

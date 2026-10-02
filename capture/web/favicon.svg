@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <title>Capture · 流量工作台</title>
+  <rect width="64" height="64" rx="17" fill="#17243b"/>
+  <!-- C 形轨迹代表 Capture，箭头与节点代表代理中的请求流转。 -->
+  <path d="M44 18a20 20 0 1 0 1 27" stroke="#72ddff" stroke-width="7" stroke-linecap="round"/>
+  <path d="M27 32h23m-7-7 7 7-7 7" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="27" cy="32" r="4" fill="#72ddff"/>
+</svg>

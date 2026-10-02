@@ -1,0 +1,12 @@
+.venv/
+.idea/
+__pycache__/
+.pytest_cache/
+data/
+*.pyc
+
+# 本机抓包证据与包含报文的截图，不上传到代码仓库。
+capture/support/research/cases/
+capture/support/docs/images/
+.DS_Store
+.ruff_cache/

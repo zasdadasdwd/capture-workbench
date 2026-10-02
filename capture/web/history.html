@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>历史会话管理 · Capture</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script src="/theme.js"></script>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <img class="logo" src="/favicon.svg" alt="Capture" />
+        <div><strong>Capture</strong><small>历史会话管理</small></div>
+      </div>
+      <div class="header-actions">
+        <button id="historyTheme">切换主题</button
+        ><a href="/">返回本次工作台 ↗</a>
+      </div>
+    </header>
+    <main class="history-main">
+      <section class="policy-bar">
+        <div>
+          <span class="eyebrow">本地归档</span
+          ><strong>历史抓包与重放会话</strong>
+          <p class="muted">
+            仅在这里加载以前的数据。打开会话可以查看请求、按目录筛选、重放和导出。
+          </p>
+        </div>
+        <button id="historyRefresh">刷新</button>
+      </section>
+      <section class="history-panel">
+        <div class="toolbar">
+          <input
+            id="historySearch"
+            type="search"
+            placeholder="搜索日期或会话 ID…"
+            aria-label="搜索历史会话"
+          /><select id="historyKind" aria-label="历史会话类型">
+            <option value="">全部类型</option>
+            <option value="capture">抓包</option>
+            <option value="replay">重放</option></select
+          ><span id="historyTotal" class="muted">加载中…</span>
+        </div>
+        <div class="history-table">
+          <table>
+            <thead>
+              <tr>
+                <th>启动时间 / 会话 ID</th>
+                <th>类型</th>
+                <th>记录数</th>
+                <th>状态</th>
+                <th>磁盘占用</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="historyRows"></tbody>
+          </table>
+        </div>
+        <p id="historyEmpty" class="muted" hidden>
+          暂无历史会话，本次启动的数据将在下次启动后出现在这里。
+        </p>
+      </section>
+      <p class="muted">
+        下载包包含 SQLite
+        快照、原始正文和日志。删除会永久移除整个会话目录，请先下载需要保留的数据。
+      </p>
+    </main>
+    <dialog id="deleteHistoryDialog">
+      <form id="deleteHistoryForm">
+        <h2>删除历史会话</h2>
+        <p id="deleteHistoryDescription"></p>
+        <p>SQLite、请求及响应正文、日志将永久删除，无法恢复。</p>
+        <label
+          >输入完整会话 ID 确认<input
+            id="deleteHistoryId"
+            autocomplete="off"
+            required
+        /></label>
+        <div class="dialog-actions">
+          <button id="deleteHistoryCancel" type="button">取消</button
+          ><button
+            id="deleteHistoryConfirm"
+            type="submit"
+            class="danger"
+            disabled
+          >
+            永久删除
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <div id="toast" role="status"></div>
+    <script src="/history.js"></script>
+  </body>
+</html>

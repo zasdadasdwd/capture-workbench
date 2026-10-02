@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>数据链路 · Capture</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script src="/theme.js"></script>
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/links.css?v=20261002-network-v5" />
+    <script type="importmap">
+      { "imports": { "three": "/vendor/three/three.module.js" } }
+    </script>
+  </head>
+  <body class="links-page">
+    <header>
+      <div class="brand">
+        <img class="logo" src="/favicon.svg" alt="Capture" />
+        <div>
+          <strong>Capture</strong><small>数据链路 · 独立进程分析</small>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="linkTheme">切换主题</button
+        ><a id="returnWorkbench" href="/">返回工作台 ↗</a>
+      </div>
+    </header>
+    <div class="links-toolbar">
+      <select id="savedViews" aria-label="保存的分析视图">
+        <option value="">保存的视图…</option></select
+      ><button id="loadView">打开视图</button
+      ><button id="saveView">保存视图</button
+      ><button id="exportGraph">导出证据 JSON</button
+      ><button id="exportImage">导出图片</button>
+      <select id="graphMode" aria-label="图形模式">
+        <option value="3d">3D 节点图</option>
+        <option value="2d">2D 关系图</option>
+        <option value="timeline">时间线</option></select
+      ><button id="resetCamera">重置视角</button
+      ><label><input id="liveLinks" type="checkbox" />实时追踪</label>
+    </div>
+    <main class="links-layout">
+      <aside class="links-controls">
+        <h2>开始分析</h2>
+        <p class="start-hint">选一条请求，追踪其中的数据流向。</p>
+        <details class="links-options session-options">
+          <summary>切换抓包会话</summary>
+          <label>抓包会话<select id="linkSession"></select></label
+          ><label
+            ><input id="includeHistory" type="checkbox" />包含历史会话</label
+          >
+        </details>
+        <h3 class="start-step"><span>1</span>选择起点请求</h3>
+        <form id="requestSearchForm">
+          <div class="links-search">
+            <input
+              id="requestSearch"
+              placeholder="搜索起点请求的网址…"
+              aria-label="搜索起点请求"
+            /><button>查找</button>
+          </div>
+        </form>
+        <select id="linkRequest" aria-label="选择起点请求"></select>
+        <p id="seedUrl" class="muted"></p>
+        <p class="start-hint">
+          这里只选择起点；将查找它与其他请求的前后关联。搜索只用于寻找起点，不改变分析范围。
+        </p>
+        <h3 class="start-step"><span>2</span>搜索参数名或数据片段</h3>
+        <form id="fieldSearchForm">
+          <div class="links-search">
+            <input
+              id="fieldSearch"
+              placeholder="搜索 Cookie、token 或其他参数…"
+              aria-label="搜索参数名或片段"
+            /><button>搜索关联</button>
+          </div>
+        </form>
+        <button id="browseFields" type="button">或浏览起点字段</button>
+        <div id="linkFields" class="link-fields"></div>
+        <div id="fieldPages" class="links-pages" hidden>
+          <button id="previousFields">上一页</button
+          ><span id="fieldCount" class="muted"></span
+          ><button id="nextFields">下一页</button>
+        </div>
+        <div id="selectedField" class="selected-field">
+          输入参数名或值的片段，直接查找所有匹配报文。
+        </div>
+        <p id="analysisScope" class="start-hint">
+          默认搜索整个会话、所有域名的 URL、请求头/体、响应头/体。
+        </p>
+        <details class="links-options">
+          <summary>高级选项</summary>
+          <label
+            >分析方式<select id="linkMode">
+              <option value="search">全文出现记录</option>
+              <option value="trace">字段转换追踪</option>
+            </select></label
+          >
+          <p class="muted">
+            全文搜索遍历整个范围；时间窗、转换规则和展示上限仅用于字段转换追踪。每批扫描数仅控制读取批次，不截断全文结果。
+          </p>
+          <label
+            >分析方向<select id="linkDirection">
+              <option value="both">查来源和后续使用</option>
+              <option value="backward">只查更早的来源</option>
+              <option value="forward">只查后续使用</option>
+            </select></label
+          >
+          <label>参数搜索范围</label>
+          <select id="fieldScope" aria-label="字段搜索范围">
+            <option value="all">字段名与值</option>
+            <option value="field">字段名</option>
+            <option value="value">数据值</option>
+          </select>
+          <label
+            ><input
+              id="revealValues"
+              type="checkbox"
+            />显示原值（仅本机）</label
+          >
+
+          <label
+            >字段追踪时间窗（秒）<input
+              id="linkWindow"
+              type="number"
+              min="1"
+              max="86400"
+              value="300"
+          /></label>
+          <label
+            >每批扫描请求<input
+              id="linkScan"
+              type="number"
+              min="1"
+              max="2000"
+              value="2000"
+          /></label>
+          <label
+            >字段追踪展示上限<input
+              id="linkNodes"
+              type="number"
+              min="1"
+              max="500"
+              value="100"
+          /></label>
+          <label
+            >限定目标域名<input id="linkHost" placeholder="留空包含所有域名"
+          /></label>
+          <label
+            ><input id="linkTransforms" type="checkbox" checked />URL / Base64 /
+            Bearer 转换</label
+          >
+          <label><input id="linkContains" type="checkbox" />包含匹配</label
+          ><label
+            ><input id="linkCommon" type="checkbox" />允许短值与常见值</label
+          ><label
+            ><input
+              id="linkOverlap"
+              type="checkbox"
+            />显示响应结束前的疑似关联</label
+          >
+          <label
+            >自定义转换规则 · JSON<textarea
+              id="linkRules"
+              rows="3"
+              placeholder='[{"name":"哈希测试","operation":"sha256"}]'
+            ></textarea>
+          </label>
+          <p class="muted">
+            支持
+            sha256、sha1、md5、hex、strip_prefix；只按声明式规则验证，不执行代码。
+          </p>
+        </details>
+        <div class="links-buttons">
+          <button class="primary" id="traceLinks" disabled>开始追踪</button
+          ><button id="cancelLinks" disabled>取消分析</button>
+        </div>
+        <p id="linkProgress" role="status" class="muted">等待选择请求</p>
+      </aside>
+      <section class="galaxy-panel" aria-label="请求数据关系图">
+        <div id="graphCanvas"></div>
+        <div id="graphFallback" hidden></div>
+        <div class="galaxy-caption">
+          <strong>请求参数关系网</strong
+          ><span id="graphHint">选参考请求 → 搜索片段 → 查看出现时间线</span
+          ><span class="muted">连线来自完整值证据 · 拖动旋转，滚轮缩放</span>
+        </div>
+        <div id="graphSource" class="graph-source" hidden></div>
+        <div id="graphEmpty" class="graph-empty">
+          <span>✦</span><strong>从来源响应追踪参数出现的请求</strong>
+          <p>搜索参数片段，先看来源响应，再看后续携带完整值的请求。</p>
+        </div>
+        <div class="graph-legend">
+          <span>● 参考请求</span><span>● 匹配响应</span><span>● 关联请求</span
+          ><span>── 完整值来源候选</span><span>┄ 相同完整值先后出现</span>
+        </div>
+        <article id="nodeCard" class="node-card" hidden>
+          <div class="node-card-heading">
+            <strong id="cardTitle">关联证据</strong
+            ><button id="closeNodeCard" aria-label="关闭节点浮窗">✕</button>
+          </div>
+          <div id="cardContent"></div>
+          <div class="links-buttons">
+            <button id="focusNode">聚焦节点</button
+            ><button id="nodeDetails">完整请求</button
+            ><button id="expandNode">选取参数继续展开</button>
+          </div>
+          <div class="annotation-row">
+            <select id="edgeJudgment" aria-label="人工关联判断">
+              <option value="candidate">候选关联</option>
+              <option value="confirmed">人工确认</option>
+              <option value="excluded">排除误匹配</option></select
+            ><input
+              id="edgeNote"
+              maxlength="2000"
+              placeholder="开发者备注…"
+            /><button id="saveNote">记录</button>
+          </div>
+        </article>
+      </section>
+      <aside class="links-evidence">
+        <h2>范围与证据</h2>
+        <div id="linkScope" class="muted">尚未执行分析</div>
+        <div id="linkWarnings" class="muted"></div>
+        <h3>响应中的来源线索</h3>
+        <div id="linkSources"></div>
+        <h3>参数出现时间线</h3>
+        <div id="linkOccurrences"></div>
+        <div id="occurrencePages" class="links-pages" hidden>
+          <button id="previousOccurrences">上一页</button
+          ><span id="occurrenceCount"></span
+          ><button id="nextOccurrences">下一页</button>
+        </div>
+        <details>
+          <summary>关联接口聚合</summary>
+          <div id="linkGroups"></div>
+        </details>
+        <h3>当前关系</h3>
+        <div id="linkEdges"></div>
+        <p class="muted">
+          连线表示可复核的值匹配；原始数据生成函数和因果关系需要额外证据。
+        </p>
+      </aside>
+    </main>
+    <dialog id="linkDetailDialog">
+      <div class="dialog-heading">
+        <h2>完整请求</h2>
+        <button id="closeLinkDetail">✕</button>
+      </div>
+      <p id="linkDetailUrl" class="viewer-url"></p>
+      <select id="linkDetailPart" aria-label="完整报文">
+        <option value="request">请求</option>
+        <option value="response">响应</option>
+        <option value="original_request">原始请求</option>
+      </select>
+      <div id="linkDetailHeaders"></div>
+      <pre id="linkDetailBody"></pre>
+    </dialog>
+    <dialog id="saveViewDialog">
+      <form id="saveViewForm">
+        <h2>保存分析视图</h2>
+        <label
+          >视图名称<input
+            id="viewName"
+            required
+            maxlength="100"
+            value="数据链路"
+        /></label>
+        <div class="dialog-actions">
+          <button type="button" id="cancelSaveView">取消</button
+          ><button class="primary">保存</button>
+        </div>
+      </form>
+    </dialog>
+    <div id="toast" role="status"></div>
+    <script type="module" src="/links.js?v=20261002-network-v5"></script>
+  </body>
+</html>

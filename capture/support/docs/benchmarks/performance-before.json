@@ -1,0 +1,12 @@
+{
+  "rows": 50000,
+  "body_bytes": 8388608,
+  "directories": {
+    "median_ms": 684.788,
+    "peak_kib": 81.2
+  },
+  "preview": {
+    "median_ms": 1.4,
+    "peak_kib": 8388.9
+  }
+}
