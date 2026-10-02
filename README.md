@@ -1,4 +1,4 @@
-# 基于mitmproxy的抓包工具(适用爬虫工程师)
+# Mitmproxy-Based Packet Capture Tool (for Web Scraping Engineers)
 
 基于 **mitmproxy** 的本地 HTTP/HTTPS 抓包工具，面向爬虫开发、接口调试和逆向分析。集抓包、编辑重放、参数追踪、三维关系图与 MCP 接入于一个 Web 控制台。
 
